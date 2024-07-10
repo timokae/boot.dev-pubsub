@@ -19,7 +19,7 @@ type Acktype int
 
 const (
 	Ack         Acktype = 0
-	NackReque   Acktype = 1
+	NackRequeue Acktype = 1
 	NackDiscard         = 2
 )
 
@@ -33,6 +33,7 @@ func DeclareAndBind(
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatal(err)
+		return nil, amqp.Queue{}, fmt.Errorf("could not create channel: %v", err)
 	}
 
 	queue, err := ch.QueueDeclare(
@@ -41,10 +42,12 @@ func DeclareAndBind(
 		simpleQueueType != SimpleQueueDurable, // delete when unused
 		simpleQueueType != SimpleQueueDurable, // exclusive
 		false,                                 // no-wait
-		nil,                                   // argument
+		amqp.Table{
+			"x-dead-letter-exchange": "peril_dlx",
+		},
 	)
 	if err != nil {
-		return nil, amqp.Queue{}, err
+		return nil, amqp.Queue{}, fmt.Errorf("could not declare queue: %v", err)
 	}
 
 	err = ch.QueueBind(queueName, key, exchange, false, nil)
@@ -89,12 +92,11 @@ func SubscribeJSON[T any](
 				continue
 			}
 
-			acktype := handler(target)
-			switch acktype {
+			switch handler(target) {
 			case Ack:
 				log.Println("Ack")
 				msg.Ack(false)
-			case NackReque:
+			case NackRequeue:
 				log.Println("Nack Reque")
 				msg.Nack(false, true)
 			case NackDiscard:

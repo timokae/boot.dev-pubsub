@@ -39,7 +39,7 @@ func main() {
 		routing.ArmyMovesPrefix+"."+username,
 		routing.ArmyMovesPrefix+".*",
 		pubsub.SimpleQueueTransient,
-		handlerMove(gameState),
+		handlerMove(publishCh, gameState),
 	)
 	if err != nil {
 		log.Fatalf("could not subscribe to army moves: %v", err)
@@ -52,6 +52,18 @@ func main() {
 		routing.PauseKey,
 		pubsub.SimpleQueueTransient,
 		handlerPause(gameState),
+	)
+	if err != nil {
+		log.Fatalf("could not subscribe to pause: %v", err)
+	}
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		routing.WarRecognitionsPrefix+".*",
+		pubsub.SimpleQueueDurable,
+		handlerWar(gameState),
 	)
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
