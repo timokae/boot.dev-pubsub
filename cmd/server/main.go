@@ -39,6 +39,18 @@ func main() {
 	}
 	log.Printf("Queue %v declared and bound!\n", gameLogQueue.Name)
 
+	err = pubsub.SubscribeGob(
+		conn,
+		routing.ExchangePerilTopic,
+		gameLogQueue.Name,
+		routing.GameLogSlug+".*",
+		pubsub.SimpleQueueDurable,
+		handlerLog(),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	gamelogic.PrintServerHelp()
 
 	for {
